@@ -91,3 +91,45 @@ resource "aws_instance" "webserver-2" {
   vpc_security_group_ids = [aws_security_group.sg.id]
   user_data              = base64encode(file("userdata1.sh"))
 }
+#create lb
+resource "aws_lb" "lb1" {
+name               = "loadbalancer"
+internal           = false
+load_balancer_type = "application"
+security_groups    = [aws_security_group.sg.id]
+subnets            = ["aws_subnet.sub1" , "aws_subnet.sub2"]
+}
+resource "aws_lb_target_group" "tg" {
+  name        = "targetgroup"
+  target_type = "alb"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+
+  health_check {
+    path = "/"
+    port = 80
+  }
+}
+resource "aws_lb_target_group_attachment" "tg1" {
+  target_group_arn = aws_lb_target_group.tg.arn
+  target_id        = aws_instance.webserver-1.id
+  port             = 80
+}
+resource "aws_lb_target_group_attachment" "tg2" {
+  target_group_arn = aws_lb_target_group.tg.arn
+  target_id        = aws_instance.webserver-2.id
+  port             = 80
+}
+resource "aws_lb_listener" "pt1" {
+  load_balancer_arn = aws_lb.lb1.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.tg.arn
+  }
+} 
+
+
